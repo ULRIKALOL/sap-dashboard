@@ -938,6 +938,8 @@ with g4:
         empty_msg = "Sin datos de requesters en esta vista"
 
     if len(ad):
+        # Fuerza a string para evitar que Plotly interprete como números
+        ad[col_y] = ad[col_y].astype(str).str.strip()
         sel_apr = st.session_state.click_filter if st.session_state.click_type == cf_type_check else None
         a_colors = highlight_bar(ad[col_y].tolist(), sel_apr, [bar_color_base] * len(ad))
         fig_apr = go.Figure(go.Bar(
@@ -976,10 +978,12 @@ with g5:
           .sort_values("Veces", ascending=True)
           .tail(12))
 
+    # Fuerza el username a string para que Plotly no lo interprete como número
+    ud["Usuario_SAP"] = ud["Usuario_SAP"].astype(str).str.strip()
+
     if len(ud):
         sel_usr = st.session_state.click_filter if st.session_state.click_type == "usuario" else None
         n_u = len(ud)
-        # Gradiente de azul claro a azul oscuro según frecuencia
         u_base = [f"hsl(220,{60+int(20*i/max(n_u-1,1))}%,{62-int(22*i/max(n_u-1,1))}%)" for i in range(n_u)]
         u_colors = highlight_bar(ud["Usuario_SAP"].tolist(), sel_usr, u_base)
 
@@ -1003,6 +1007,14 @@ with g5:
             showgrid=True, gridcolor="#f1f5f9", zeroline=False,
             tickformat=",d",
             title=dict(text="Número de descargas", font=dict(size=11, color="#94a3b8")),
+        )
+        # Fuerza eje Y como categoría para que muestre los usernames, no números
+        layout_usr["yaxis"] = dict(
+            type="category",
+            categoryorder="array",
+            categoryarray=ud["Usuario_SAP"].tolist(),
+            tickfont=dict(size=11),
+            showgrid=False,
         )
         fig_usr.update_layout(**layout_usr)
 
