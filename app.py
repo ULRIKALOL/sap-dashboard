@@ -53,109 +53,302 @@ TURNO_C = {
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
-html,body,[class*="css"]{font-family:'DM Sans',sans-serif;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+/* ── GLOBALS & TRANSITIONS ── */
+*{box-sizing:border-box;}
+html,body,[class*="css"]{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+
+/* Fade-in suave en cada re-render para evitar el flash de Streamlit */
+.main .block-container{
+  animation:fadeInPage .25s ease-out;
+  padding-top:1.5rem!important;
+}
+@keyframes fadeInPage{from{opacity:.6;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* Transición en todos los contenedores de datos */
+[data-testid="stVerticalBlock"]{transition:opacity .2s ease;}
+
+/* ── PAGE BACKGROUND ── */
+.main{background:#f0f4f8;}
+[data-testid="stAppViewContainer"]{background:#f0f4f8;}
 
 /* ── HEADER ── */
 .hdr{
-  background:linear-gradient(135deg,#0a1f38 0%,#0f3460 60%,#16213e 100%);
-  border-radius:20px;padding:30px 40px;margin-bottom:24px;
+  background:linear-gradient(135deg,#071829 0%,#0c2d50 45%,#0a3d6b 100%);
+  border-radius:22px;padding:28px 38px;margin-bottom:22px;
   display:flex;align-items:center;justify-content:space-between;
-  border:1px solid rgba(255,255,255,.06);
-  box-shadow:0 4px 24px rgba(0,0,0,.18);
+  border:1px solid rgba(255,255,255,.07);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.08) inset,
+    0 8px 32px rgba(7,24,41,.45),
+    0 2px 8px rgba(0,0,0,.25);
+  position:relative;overflow:hidden;
 }
-.hdr h1{color:#fff;font-size:21px;font-weight:700;margin:0 0 5px;letter-spacing:-.3px;}
-.hdr p{color:rgba(255,255,255,.45);font-size:12px;margin:0;}
-.hdr-stats{display:flex;gap:32px;}
-.hdr-stat .v{color:#fff;font-size:26px;font-weight:800;line-height:1;text-align:right;}
-.hdr-stat .l{color:rgba(255,255,255,.4);font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-top:4px;text-align:right;}
+.hdr::before{
+  content:'';position:absolute;top:-60px;right:-60px;width:260px;height:260px;
+  background:radial-gradient(circle,rgba(56,130,246,.18) 0%,transparent 70%);
+  pointer-events:none;
+}
+.hdr::after{
+  content:'';position:absolute;bottom:-80px;left:30%;width:300px;height:200px;
+  background:radial-gradient(circle,rgba(99,102,241,.12) 0%,transparent 70%);
+  pointer-events:none;
+}
+.hdr h1{color:#fff;font-size:20px;font-weight:700;margin:0 0 6px;letter-spacing:-.4px;position:relative;z-index:1;}
+.hdr p{color:rgba(255,255,255,.4);font-size:12px;margin:0;position:relative;z-index:1;}
+.hdr-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  background:rgba(56,189,248,.15);border:1px solid rgba(56,189,248,.3);
+  color:#7dd3fc;border-radius:20px;padding:3px 10px;font-size:10px;font-weight:600;
+  letter-spacing:.05em;margin-bottom:8px;
+}
+.hdr-stats{display:flex;gap:0;position:relative;z-index:1;}
+.hdr-divider{width:1px;background:rgba(255,255,255,.12);margin:0 24px;}
+.hdr-stat{text-align:right;}
+.hdr-stat .v{color:#fff;font-size:24px;font-weight:800;line-height:1;letter-spacing:-.5px;}
+.hdr-stat .l{color:rgba(255,255,255,.35);font-size:10px;text-transform:uppercase;letter-spacing:.1em;margin-top:5px;}
 
-/* ── KPIs ── */
-.krow{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px;}
+/* ── KPI CARDS ── */
 .kcard{
-  background:#fff;border-radius:16px;padding:20px 22px;
-  border:1px solid #eef2f7;position:relative;overflow:hidden;
-  box-shadow:0 1px 8px rgba(15,41,66,.06);
+  background:#fff;border-radius:18px;padding:22px 22px 18px;
+  border:1px solid rgba(226,232,240,.8);position:relative;overflow:hidden;
+  box-shadow:0 2px 4px rgba(15,41,66,.04),0 8px 16px rgba(15,41,66,.06);
+  transition:transform .18s ease,box-shadow .18s ease;
 }
-.kcard::after{
-  content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:3px 3px 0 0;
+.kcard:hover{transform:translateY(-2px);box-shadow:0 4px 8px rgba(15,41,66,.06),0 16px 32px rgba(15,41,66,.1);}
+.kcard::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:18px 18px 0 0;
 }
-.kcard.blue::after{background:linear-gradient(90deg,#185FA5,#3b82f6);}
-.kcard.green::after{background:linear-gradient(90deg,#15803d,#22c55e);}
-.kcard.red::after{background:linear-gradient(90deg,#b91c1c,#f87171);}
-.kcard.amber::after{background:linear-gradient(90deg,#b45309,#fbbf24);}
-.kcard.purple::after{background:linear-gradient(90deg,#6d28d9,#a78bfa);}
-.kcard-icon{font-size:22px;margin-bottom:10px;opacity:.8;}
-.kcard-lbl{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;}
-.kcard-val{font-size:26px;font-weight:800;color:#0f172a;line-height:1;}
-.kcard-sub{font-size:11px;color:#94a3b8;margin-top:5px;}
+.kcard.blue::before{background:linear-gradient(90deg,#1d4ed8,#60a5fa);}
+.kcard.green::before{background:linear-gradient(90deg,#15803d,#4ade80);}
+.kcard.red::before{background:linear-gradient(90deg,#b91c1c,#f87171);}
+.kcard.amber::before{background:linear-gradient(90deg,#b45309,#fbbf24);}
+.kcard.purple::before{background:linear-gradient(90deg,#6d28d9,#a78bfa);}
+/* Subtle glow bg */
+.kcard.blue::after{content:'';position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;background:radial-gradient(circle,rgba(29,78,216,.08),transparent 70%);border-radius:50%;}
+.kcard.green::after{content:'';position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;background:radial-gradient(circle,rgba(21,128,61,.08),transparent 70%);border-radius:50%;}
+.kcard.red::after{content:'';position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;background:radial-gradient(circle,rgba(185,28,28,.08),transparent 70%);border-radius:50%;}
+.kcard.amber::after{content:'';position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;background:radial-gradient(circle,rgba(180,83,9,.08),transparent 70%);border-radius:50%;}
+.kcard.purple::after{content:'';position:absolute;bottom:-20px;right:-20px;width:80px;height:80px;background:radial-gradient(circle,rgba(109,40,217,.08),transparent 70%);border-radius:50%;}
+.kcard-icon{font-size:20px;margin-bottom:12px;display:block;line-height:1;}
+.kcard-lbl{font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;}
+.kcard-val{font-size:26px;font-weight:800;color:#0f172a;line-height:1;letter-spacing:-.5px;}
+.kcard-sub{font-size:11px;color:#94a3b8;margin-top:6px;font-weight:400;}
 
 /* ── SECTION HEADERS ── */
 .shd{
   display:flex;align-items:center;gap:10px;
-  font-size:11px;font-weight:700;color:#64748b;
-  text-transform:uppercase;letter-spacing:.1em;
+  font-size:10px;font-weight:700;color:#94a3b8;
+  text-transform:uppercase;letter-spacing:.14em;
   margin:28px 0 14px;padding-bottom:10px;
-  border-bottom:1.5px solid #f1f5f9;
+  border-bottom:1px solid #e2e8f0;
 }
-.shd span{background:#f1f5f9;border-radius:6px;padding:3px 8px;font-size:10px;}
+.shd-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.shd-dot.blue{background:#3b82f6;}
+.shd-dot.green{background:#22c55e;}
+.shd-dot.orange{background:#f97316;}
+.shd-dot.purple{background:#a78bfa;}
+.shd-dot.gray{background:#94a3b8;}
 
 /* ── ALERT ── */
 .alert-u{
-  background:linear-gradient(135deg,#fff8f0,#fff);
-  border:1px solid #fed7aa;border-left:5px solid #ea580c;
-  border-radius:14px;padding:20px 24px;margin-bottom:20px;
-  box-shadow:0 2px 12px rgba(234,88,12,.08);
+  background:linear-gradient(135deg,#fffbf5 0%,#fff 100%);
+  border:1px solid #fcd9a8;border-left:4px solid #f97316;
+  border-radius:16px;padding:20px 24px;margin-bottom:22px;
+  box-shadow:0 2px 16px rgba(249,115,22,.1),0 1px 4px rgba(249,115,22,.08);
 }
-.alert-title{font-size:14px;font-weight:700;color:#9a3412;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
-.alert-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
-.abox{background:#fff;border:1px solid #fed7aa;border-radius:10px;padding:14px 16px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.04);}
-.abox .av{font-size:26px;font-weight:800;color:#ea580c;line-height:1;}
-.abox .al{font-size:11px;color:#9a3412;margin-top:3px;}
-.abox .as{font-size:12px;font-weight:600;color:#7c2d12;margin-top:5px;}
+.alert-title{font-size:13px;font-weight:700;color:#9a3412;margin-bottom:14px;display:flex;align-items:center;gap:8px;line-height:1.4;}
+.alert-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.abox{
+  background:#fff;border:1px solid #fed7aa;border-radius:12px;
+  padding:14px 16px;text-align:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.04),0 4px 8px rgba(249,115,22,.06);
+  transition:transform .15s ease;
+}
+.abox:hover{transform:translateY(-1px);}
+.abox .av{font-size:24px;font-weight:800;color:#ea580c;line-height:1;letter-spacing:-.5px;}
+.abox .al{font-size:10px;color:#9a3412;margin-top:4px;font-weight:500;text-transform:uppercase;letter-spacing:.04em;}
+.abox .as{font-size:13px;font-weight:700;color:#7c2d12;margin-top:6px;}
 
-/* ── QUICK FILTER BUTTONS ── */
-.stButton button{border-radius:10px!important;font-weight:600!important;font-size:12px!important;transition:all .2s!important;}
+/* ── BUTTONS — profundidad real ── */
+.stButton > button{
+  border-radius:12px!important;
+  font-weight:600!important;font-size:12px!important;
+  letter-spacing:.01em!important;
+  transition:all .16s cubic-bezier(.4,0,.2,1)!important;
+  position:relative!important;
+}
+/* Botones secundarios */
+.stButton > button[kind="secondary"]{
+  background:#fff!important;
+  border:1.5px solid #e2e8f0!important;
+  color:#475569!important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.9) inset,
+    0 -1px 0 rgba(0,0,0,.06) inset,
+    0 1px 3px rgba(15,23,42,.1),
+    0 2px 8px rgba(15,23,42,.06)!important;
+}
+.stButton > button[kind="secondary"]:hover{
+  background:#f8fafc!important;
+  border-color:#cbd5e1!important;
+  color:#1e293b!important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.9) inset,
+    0 -1px 0 rgba(0,0,0,.08) inset,
+    0 2px 6px rgba(15,23,42,.14),
+    0 4px 16px rgba(15,23,42,.08)!important;
+  transform:translateY(-1px)!important;
+}
+.stButton > button[kind="secondary"]:active{
+  transform:translateY(0)!important;
+  box-shadow:0 1px 2px rgba(15,23,42,.1)!important;
+}
+/* Botones primarios */
+.stButton > button[kind="primary"]{
+  background:linear-gradient(180deg,#1d4ed8 0%,#1e40af 100%)!important;
+  border:1px solid #1e3a8a!important;
+  color:#fff!important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.15) inset,
+    0 -1px 0 rgba(0,0,0,.2) inset,
+    0 2px 4px rgba(30,64,175,.4),
+    0 4px 16px rgba(30,64,175,.25)!important;
+}
+.stButton > button[kind="primary"]:hover{
+  background:linear-gradient(180deg,#2563eb 0%,#1d4ed8 100%)!important;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.18) inset,
+    0 -1px 0 rgba(0,0,0,.2) inset,
+    0 4px 8px rgba(30,64,175,.45),
+    0 8px 24px rgba(30,64,175,.3)!important;
+  transform:translateY(-1px)!important;
+}
+.stButton > button[kind="primary"]:active{
+  background:linear-gradient(180deg,#1e40af 0%,#1e3a8a 100%)!important;
+  transform:translateY(0)!important;
+  box-shadow:0 1px 4px rgba(30,64,175,.3)!important;
+}
 
 /* ── CHART CARDS ── */
 .chart-card{
-  background:#fff;border-radius:16px;border:1px solid #eef2f7;
-  padding:18px 20px;box-shadow:0 1px 8px rgba(15,41,66,.05);
+  background:#fff;border-radius:18px;
+  border:1px solid rgba(226,232,240,.7);
+  padding:20px 22px;
+  box-shadow:0 1px 3px rgba(15,41,66,.04),0 6px 16px rgba(15,41,66,.06);
   margin-bottom:16px;
+  transition:box-shadow .18s ease;
 }
-.chart-card-title{font-size:13px;font-weight:600;color:#1e293b;margin-bottom:2px;}
-.chart-card-sub{font-size:11px;color:#94a3b8;margin-bottom:14px;}
+.chart-card:hover{box-shadow:0 2px 6px rgba(15,41,66,.06),0 12px 28px rgba(15,41,66,.09);}
+.chart-card-title{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:3px;letter-spacing:-.1px;}
+.chart-card-sub{font-size:11px;color:#94a3b8;margin-bottom:16px;font-weight:400;}
 
 /* ── DIAG BAR ── */
 .diag-bar{
-  background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #22c55e;
-  border-radius:10px;padding:10px 18px;margin-bottom:14px;
-  display:flex;gap:28px;align-items:center;flex-wrap:wrap;font-size:12px;color:#14532d;
+  background:linear-gradient(135deg,#f0fdf4,#f7fef9);
+  border:1px solid #bbf7d0;border-left:4px solid #22c55e;
+  border-radius:12px;padding:10px 18px;margin-bottom:14px;
+  display:flex;gap:24px;align-items:center;flex-wrap:wrap;
+  font-size:12px;color:#14532d;
+  box-shadow:0 1px 4px rgba(34,197,94,.1);
 }
-
-/* ── SIDEBAR ── */
-section[data-testid="stSidebar"]{background:#0a1f38!important;}
-section[data-testid="stSidebar"] .stMarkdown p,
-section[data-testid="stSidebar"] .stMarkdown h3,
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] .stCaption{color:#e2e8f0!important;}
-section[data-testid="stSidebar"] input{color:#0f172a!important;}
-section[data-testid="stSidebar"] .stButton button{
-  background:rgba(255,255,255,.1)!important;color:#fff!important;
-  border:1px solid rgba(255,255,255,.2)!important;
-}
-section[data-testid="stSidebar"] .stButton button:hover{background:rgba(255,255,255,.2)!important;}
 
 /* ── ACTIVE FILTER CHIP ── */
 .active-chip{
   display:inline-flex;align-items:center;gap:6px;
-  background:#dbeafe;color:#1e40af;border-radius:20px;
-  padding:4px 12px;font-size:12px;font-weight:600;margin-bottom:12px;
+  background:linear-gradient(135deg,#eff6ff,#dbeafe);
+  color:#1e40af;border-radius:20px;
+  border:1px solid #bfdbfe;
+  padding:5px 14px;font-size:12px;font-weight:600;margin-bottom:12px;
+  box-shadow:0 1px 4px rgba(29,78,216,.12);
+  animation:chipIn .2s ease-out;
+}
+@keyframes chipIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+
+/* ── SIDEBAR ── */
+section[data-testid="stSidebar"]{
+  background:linear-gradient(180deg,#071829 0%,#0c2544 100%)!important;
+  border-right:1px solid rgba(255,255,255,.06)!important;
+}
+section[data-testid="stSidebar"]::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:200px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(56,130,246,.2),transparent 70%);
+  pointer-events:none;
+}
+section[data-testid="stSidebar"] .stMarkdown p,
+section[data-testid="stSidebar"] .stMarkdown h3,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] .stCaption{color:#94a3b8!important;}
+section[data-testid="stSidebar"] input{
+  background:rgba(255,255,255,.07)!important;
+  border:1px solid rgba(255,255,255,.12)!important;
+  color:#f1f5f9!important;border-radius:10px!important;
+}
+section[data-testid="stSidebar"] .stButton > button{
+  background:rgba(255,255,255,.08)!important;
+  color:#e2e8f0!important;
+  border:1px solid rgba(255,255,255,.14)!important;
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset,0 2px 8px rgba(0,0,0,.2)!important;
+}
+section[data-testid="stSidebar"] .stButton > button:hover{
+  background:rgba(255,255,255,.15)!important;
+  border-color:rgba(255,255,255,.24)!important;
+  transform:translateY(-1px)!important;
+}
+section[data-testid="stSidebar"] .stButton > button[kind="primary"]{
+  background:linear-gradient(180deg,#2563eb,#1d4ed8)!important;
+  border-color:#1e3a8a!important;color:#fff!important;
+  box-shadow:0 2px 8px rgba(37,99,235,.4)!important;
 }
 
+/* ── SELECTBOX & DATE INPUT ── */
+[data-testid="stSelectbox"] > div > div,
+[data-testid="stDateInput"] > div > div > input{
+  border-radius:10px!important;
+  border:1.5px solid #e2e8f0!important;
+  background:#fff!important;
+  box-shadow:0 1px 3px rgba(15,23,42,.06)!important;
+  transition:border-color .15s,box-shadow .15s!important;
+}
+[data-testid="stSelectbox"] > div > div:focus-within,
+[data-testid="stDateInput"] > div > div > input:focus{
+  border-color:#3b82f6!important;
+  box-shadow:0 0 0 3px rgba(59,130,246,.12),0 1px 3px rgba(15,23,42,.06)!important;
+}
+
+/* ── TEXT INPUT ── */
+[data-testid="stTextInput"] input{
+  border-radius:10px!important;border:1.5px solid #e2e8f0!important;
+  background:#fff!important;
+  box-shadow:0 1px 3px rgba(15,23,42,.06)!important;
+  transition:border-color .15s,box-shadow .15s!important;
+}
+[data-testid="stTextInput"] input:focus{
+  border-color:#3b82f6!important;
+  box-shadow:0 0 0 3px rgba(59,130,246,.12),0 1px 3px rgba(15,23,42,.06)!important;
+}
+
+/* ── DATAFRAME ── */
+[data-testid="stDataFrame"]{
+  border-radius:14px!important;overflow:hidden;
+  box-shadow:0 1px 3px rgba(15,41,66,.06),0 4px 12px rgba(15,41,66,.06)!important;
+  border:1px solid #e8edf3!important;
+}
+
+/* ── EXPANDER ── */
+[data-testid="stExpander"]{
+  border-radius:14px!important;border:1.5px solid #e2e8f0!important;
+  box-shadow:0 1px 4px rgba(15,41,66,.05)!important;
+  overflow:hidden;background:#fff!important;
+}
+
+/* ── HIDE STREAMLIT CHROME ── */
 #MainMenu{visibility:hidden;}footer{visibility:hidden;}
-.stDeployButton{display:none;}header[data-testid="stHeader"]{display:none;}
+.stDeployButton{display:none;}
+header[data-testid="stHeader"]{display:none;}
 div[data-testid="stDecoration"]{display:none;}
+[data-testid="stToolbar"]{display:none!important;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -406,11 +599,13 @@ mro_n = fmt_num(st.session_state.mro_count) if st.session_state.mro_count else "
 st.markdown(f"""
 <div class="hdr">
   <div class="header-left">
-    <h1>📊 SAP × MRO — Dashboard Gerencial</h1>
+    <div class="hdr-badge">⬡ SAP ANALYTICS PRO</div>
+    <h1>Dashboard Gerencial — Comparativo de Descargas</h1>
     <p>Movimientos tipo 201 · Cruce automático por Reference · Actualizado: {last_str}</p>
   </div>
   <div class="hdr-stats">
     <div class="hdr-stat"><div class="v">{sap_n}</div><div class="l">Mov. SAP 201</div></div>
+    <div class="hdr-divider"></div>
     <div class="hdr-stat"><div class="v">{mro_n}</div><div class="l">Folios MRO</div></div>
   </div>
 </div>
@@ -441,7 +636,7 @@ if st.session_state.matched + st.session_state.not_matched > 0:
     </div>""", unsafe_allow_html=True)
 
 # ── FILTROS GLOBALES ───────────────────────────────────────────────────────────
-st.markdown('<div class="shd">🎛 <span>Filtros globales</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="shd"><div class="shd-dot gray"></div>Filtros globales</div>', unsafe_allow_html=True)
 fg1, fg2, fg3, fg4 = st.columns([1.4, 1.2, 1, 1])
 
 with fg1:
@@ -495,7 +690,7 @@ if total_disc > 0:
     </div>""", unsafe_allow_html=True)
 
 # ── FILTROS RÁPIDOS ────────────────────────────────────────────────────────────
-st.markdown('<div class="shd">⚡ <span>Vista rápida</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="shd"><div class="shd-dot blue"></div>Vista rápida</div>', unsafe_allow_html=True)
 QUICK = [
     ("Todos",           len(df)),
     ("Aprobados",       int(df["Aprobado"].sum())),
@@ -551,7 +746,7 @@ if cf_val and cf_type:
         st.rerun()
 
 # ── KPIs ───────────────────────────────────────────────────────────────────────
-st.markdown('<div class="shd">📈 <span>Resumen ejecutivo</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="shd"><div class="shd-dot blue"></div>Resumen ejecutivo</div>', unsafe_allow_html=True)
 total   = len(df)
 m_total = df["Monto_SAP"].sum()
 apr_n   = int(df["Aprobado"].sum())
@@ -613,7 +808,7 @@ def make_hbar(y_vals, x_vals, colors, texts, customdata, hover, cf_col, height=3
     return fig
 
 # ── GRÁFICAS ROW 1: ESTADO + TURNOS ───────────────────────────────────────────
-st.markdown('<div class="shd">📊 <span>Distribución de descargas</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="shd"><div class="shd-dot purple"></div>Distribución de descargas</div>', unsafe_allow_html=True)
 g1, g2, g3 = st.columns([1.3, 1, 1])
 
 with g1:
@@ -688,7 +883,7 @@ with g3:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ── GRÁFICAS ROW 2: APROBADORES/REQUESTER + USUARIOS SAP ──────────────────────
-st.markdown('<div class="shd">👤 <span>Aprobadores y usuarios SAP</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="shd"><div class="shd-dot green"></div>Aprobadores y usuarios SAP</div>', unsafe_allow_html=True)
 g4, g5 = st.columns(2)
 
 # ── Columna izquierda: toggle Aprobador / Requester ───────────────────────────
@@ -829,7 +1024,7 @@ with g5:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ── TOP MATERIALES ─────────────────────────────────────────────────────────────
-st.markdown('<div class="shd">🔩 <span>Top materiales descargados</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="shd"><div class="shd-dot orange"></div>Top materiales descargados</div>', unsafe_allow_html=True)
 st.markdown('<div class="chart-card">', unsafe_allow_html=True)
 st.markdown('<div class="chart-card-title">Materiales por monto total</div><div class="chart-card-sub">Código SAP y descripción · haz clic para filtrar</div>', unsafe_allow_html=True)
 
@@ -865,7 +1060,7 @@ if len(md2):
 st.markdown('</div>', unsafe_allow_html=True)
 
 # ── TABLA DETALLE ──────────────────────────────────────────────────────────────
-st.markdown('<div class="shd">📋 <span>Detalle de movimientos</span></div>', unsafe_allow_html=True)
+st.markdown('<div class="shd"><div class="shd-dot gray"></div>Detalle de movimientos</div>', unsafe_allow_html=True)
 st.markdown('<div class="chart-card">', unsafe_allow_html=True)
 
 fc1, fc2, fc3 = st.columns([2, 1, 1])
