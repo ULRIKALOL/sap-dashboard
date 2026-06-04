@@ -164,8 +164,9 @@ defaults = {
     "data": None, "is_admin": False, "last_update": None,
     "sap_count": 0, "mro_count": 0, "quick_filter": "Todos",
     "matched": 0, "not_matched": 0, "sap_ref_col": "", "mro_ref_col": "",
-    "click_filter": None,   # cross-filter from chart click
-    "click_type": None,     # "aprobador" | "usuario" | "status" | "turno" | "material"
+    "click_filter": None,
+    "click_type": None,
+    "apr_toggle": "aprobador",   # "aprobador" | "requester"
 }
 for k, v in defaults.items():
     if k not in st.session_state:
@@ -675,59 +676,134 @@ with g3:
     st.plotly_chart(fig_mt, use_container_width=True, config={"displayModeBar": False}, key="bar_monto_t")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ── GRÁFICAS ROW 2: APROBADORES + USUARIOS ────────────────────────────────────
+# ── GRÁFICAS ROW 2: APROBADORES/REQUESTER + USUARIOS SAP ──────────────────────
 st.markdown('<div class="shd">👤 <span>Aprobadores y usuarios SAP</span></div>', unsafe_allow_html=True)
 g4, g5 = st.columns(2)
 
+# ── Columna izquierda: toggle Aprobador / Requester ───────────────────────────
 with g4:
     st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-card-title">Top aprobadores MRO</div><div class="chart-card-sub">Por monto autorizado · haz clic para filtrar todo el dashboard</div>', unsafe_allow_html=True)
-    ad = df[df["Aprobador"] != "—"].groupby("Aprobador").agg(
-        Monto=("Monto_SAP","sum"), Movs=("Reference","count")
-    ).reset_index().sort_values("Monto", ascending=True).tail(10)
+
+    # Toggle buttons
+    t_col1, t_col2, _ = st.columns([1, 1, 2])
+    with t_col1:
+        apr_active = st.session_state.get("apr_toggle", "aprobador") == "aprobador"
+        if st.button("👤 Aprobador", key="toggle_apr",
+                     type="primary" if apr_active else "secondary",
+                     use_container_width=True):
+            st.session_state.apr_toggle = "aprobador"
+            # limpiar cross-filter si era del otro tipo
+            if st.session_state.click_type in ("aprobador","requester"):
+                st.session_state.click_filter = None
+                st.session_state.click_type   = None
+            st.rerun()
+    with t_col2:
+        req_active = st.session_state.get("apr_toggle", "aprobador") == "requester"
+        if st.button("📋 Requester", key="toggle_req",
+                     type="primary" if req_active else "secondary",
+                     use_container_width=True):
+            st.session_state.apr_toggle = "requester"
+            if st.session_state.click_type in ("aprobador","requester"):
+                st.session_state.click_filter = None
+                st.session_state.click_type   = None
+            st.rerun()
+
+    modo = st.session_state.get("apr_toggle", "aprobador")
+
+    if modo == "aprobador":
+        st.markdown('<div class="chart-card-title" style="margin-top:10px">Top aprobadores MRO</div><div class="chart-card-sub">Por monto autorizado · haz clic para filtrar</div>', unsafe_allow_html=True)
+        ad = df[df["Aprobador"] != "—"].groupby("Aprobador").agg(
+            Monto=("Monto_SAP","sum"), Movs=("Reference","count")
+        ).reset_index().sort_values("Monto", ascending=True).tail(10)
+        cf_type_check = "aprobador"
+        col_y = "Aprobador"
+        data_df = ad
+        bar_color_base = "#185FA5"
+        empty_msg = "Sin datos de aprobadores en esta vista"
+    else:
+        st.markdown('<div class="chart-card-title" style="margin-top:10px">Top requesters / solicitantes</div><div class="chart-card-sub">Por monto solicitado · haz clic para filtrar</div>', unsafe_allow_html=True)
+        ad = df[df["Solicitante"] != "—"].groupby("Solicitante").agg(
+            Monto=("Monto_SAP","sum"), Movs=("Reference","count")
+        ).reset_index().sort_values("Monto", ascending=True).tail(10)
+        cf_type_check = "requester"
+        col_y = "Solicitante"
+        data_df = ad
+        bar_color_base = "#0369a1"
+        empty_msg = "Sin datos de requesters en esta vista"
+
     if len(ad):
-        sel_apr = st.session_state.click_filter if st.session_state.click_type == "aprobador" else None
-        a_colors = highlight_bar(ad["Aprobador"].tolist(), sel_apr,
-                                 ["#185FA5"] * len(ad))
+        sel_apr = st.session_state.click_filter if st.session_state.click_type == cf_type_check else None
+        a_colors = highlight_bar(ad[col_y].tolist(), sel_apr, [bar_color_base] * len(ad))
         fig_apr = go.Figure(go.Bar(
-            y=ad["Aprobador"], x=ad["Monto"], orientation="h",
+            y=ad[col_y], x=ad["Monto"], orientation="h",
             marker=dict(color=a_colors, line=dict(width=0)),
             text=[fmt_mxn(v) for v in ad["Monto"]], textposition="outside", textfont=dict(size=10),
-            customdata=list(zip(ad["Movs"], ad["Aprobador"])),
+            customdata=list(zip(ad["Movs"], ad[col_y])),
             hovertemplate="<b>%{y}</b><br>Monto: $%{x:,.0f}<br>Movimientos: %{customdata[0]}<extra></extra>",
         ))
         fig_apr.update_layout(**bar_layout(max(280, len(ad)*42)))
         sel_a = st.plotly_chart(fig_apr, use_container_width=True,
-            config={"displayModeBar": False}, on_select="rerun", key="bar_aprobador")
+            config={"displayModeBar": False}, on_select="rerun", key=f"bar_{cf_type_check}")
         if sel_a and sel_a.get("selection") and sel_a["selection"].get("points"):
             pt  = sel_a["selection"]["points"][0]
             lbl = pt.get("y") or pt.get("label")
             if lbl and lbl != st.session_state.click_filter:
                 st.session_state.click_filter = lbl
-                st.session_state.click_type   = "aprobador"
+                st.session_state.click_type   = cf_type_check
                 st.rerun()
     else:
-        st.info("Sin datos de aprobadores en esta vista")
+        st.info(empty_msg)
     st.markdown('</div>', unsafe_allow_html=True)
 
+# ── Columna derecha: ID SAP por número de movimientos (no suma de montos) ─────
 with g5:
     st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-card-title">Usuarios SAP por monto descargado</div><div class="chart-card-sub">ID de usuario SAP · haz clic para filtrar</div>', unsafe_allow_html=True)
-    ud = df[df["Usuario_SAP"] != "—"].groupby("Usuario_SAP").agg(
-        Monto=("Monto_SAP","sum"), Movs=("Reference","count")
-    ).reset_index().sort_values("Monto", ascending=True).tail(10)
+    st.markdown('<div class="chart-card-title">IDs SAP con más descargas</div><div class="chart-card-sub">Por número de movimientos tipo 201 registrados · haz clic para filtrar</div>', unsafe_allow_html=True)
+
+    # Agrupa por ID (texto), cuenta movimientos y suma monto como info adicional
+    ud = (df[df["Usuario_SAP"].str.strip().ne("—") & df["Usuario_SAP"].str.strip().ne("")]
+          .groupby("Usuario_SAP")
+          .agg(
+              Movimientos=("Reference","count"),   # cuántas veces surtió
+              Monto_Total=("Monto_SAP","sum"),      # monto acumulado (info hover)
+              Refs_Unicas=("Reference","nunique"),  # referencias distintas
+          )
+          .reset_index()
+          .sort_values("Movimientos", ascending=True)
+          .tail(10))
+
     if len(ud):
         sel_usr = st.session_state.click_filter if st.session_state.click_type == "usuario" else None
-        u_colors = highlight_bar(ud["Usuario_SAP"].tolist(), sel_usr,
-                                 ["#7c3aed"] * len(ud))
+        # Color por volumen: gradiente de menos a más movimientos
+        n_u = len(ud)
+        u_base = [f"hsl(262,{55+int(25*i/max(n_u-1,1))}%,{55-int(20*i/max(n_u-1,1))}%)" for i in range(n_u)]
+        u_colors = highlight_bar(ud["Usuario_SAP"].tolist(), sel_usr, u_base)
+
         fig_usr = go.Figure(go.Bar(
-            y=ud["Usuario_SAP"], x=ud["Monto"], orientation="h",
+            y=ud["Usuario_SAP"],
+            x=ud["Movimientos"],
+            orientation="h",
             marker=dict(color=u_colors, line=dict(width=0)),
-            text=[fmt_mxn(v) for v in ud["Monto"]], textposition="outside", textfont=dict(size=10),
-            customdata=list(zip(ud["Movs"], ud["Usuario_SAP"])),
-            hovertemplate="<b>%{y}</b><br>Monto: $%{x:,.0f}<br>Movimientos: %{customdata[0]}<extra></extra>",
+            text=ud["Movimientos"],
+            textposition="outside",
+            textfont=dict(size=11, family="DM Sans"),
+            customdata=list(zip(ud["Monto_Total"], ud["Refs_Unicas"], ud["Usuario_SAP"])),
+            hovertemplate=(
+                "<b>ID SAP: %{y}</b><br>"
+                "Movimientos: <b>%{x:,}</b><br>"
+                "Monto total: $%{customdata[0]:,.0f}<br>"
+                "Referencias únicas: %{customdata[1]}<extra></extra>"
+            ),
         ))
-        fig_usr.update_layout(**bar_layout(max(280, len(ud)*42)))
+        # Eje X con conteo, no dinero
+        layout_usr = bar_layout(max(280, len(ud)*42))
+        layout_usr["xaxis"] = dict(
+            showgrid=True, gridcolor="#f1f5f9", zeroline=False,
+            tickformat=",d", title="Número de movimientos",
+            titlefont=dict(size=11, color="#94a3b8"),
+        )
+        fig_usr.update_layout(**layout_usr)
+
         sel_u = st.plotly_chart(fig_usr, use_container_width=True,
             config={"displayModeBar": False}, on_select="rerun", key="bar_usuario")
         if sel_u and sel_u.get("selection") and sel_u["selection"].get("points"):
@@ -738,7 +814,7 @@ with g5:
                 st.session_state.click_type   = "usuario"
                 st.rerun()
     else:
-        st.info("Sin datos de usuarios en esta vista")
+        st.info("Sin datos de usuarios SAP en esta vista")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # ── TOP MATERIALES ─────────────────────────────────────────────────────────────
