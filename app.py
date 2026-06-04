@@ -166,11 +166,22 @@ defaults = {
     "matched": 0, "not_matched": 0, "sap_ref_col": "", "mro_ref_col": "",
     "click_filter": None,
     "click_type": None,
-    "apr_toggle": "aprobador",   # "aprobador" | "requester"
+    "apr_toggle": "aprobador",
 }
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+# Invalida datos viejos que no tengan las columnas actuales
+REQUIRED_COLS = {"Proyecto", "Fecha_dt", "Monto_SAP", "Turno", "Solicitante", "En_MRO", "Discrepancia"}
+if st.session_state.data is not None:
+    if not REQUIRED_COLS.issubset(set(st.session_state.data.columns)):
+        st.session_state.data        = None
+        st.session_state.last_update = None
+        st.session_state.sap_count   = 0
+        st.session_state.mro_count   = 0
+        st.session_state.matched     = 0
+        st.session_state.not_matched = 0
 
 # ── HELPERS ────────────────────────────────────────────────────────────────────
 def get_turno(t):
@@ -799,8 +810,8 @@ with g5:
         layout_usr = bar_layout(max(280, len(ud)*42))
         layout_usr["xaxis"] = dict(
             showgrid=True, gridcolor="#f1f5f9", zeroline=False,
-            tickformat=",d", title="Número de movimientos",
-            titlefont=dict(size=11, color="#94a3b8"),
+            tickformat=",d",
+            title=dict(text="Número de movimientos", font=dict(size=11, color="#94a3b8")),
         )
         fig_usr.update_layout(**layout_usr)
 
