@@ -12,7 +12,7 @@ st.set_page_config(
     page_title="SAP Analytics | Gerencia",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 ADMIN_PASSWORD = hashlib.sha256("admin2024".encode()).hexdigest()
@@ -335,10 +335,11 @@ st.markdown(f"""
 
 # ── SIDEBAR — ADMIN LOGIN ─────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### 🔐 Acceso Admin")
+    st.markdown("## 🔐 Acceso Admin")
+    st.markdown("---")
     if not st.session_state.is_admin:
         pwd = st.text_input("Contraseña", type="password", placeholder="Ingresa tu contraseña")
-        if st.button("Entrar"):
+        if st.button("Entrar", use_container_width=True, type="primary"):
             if hashlib.sha256(pwd.encode()).hexdigest() == ADMIN_PASSWORD:
                 st.session_state.is_admin = True
                 st.rerun()
@@ -346,16 +347,24 @@ with st.sidebar:
                 st.error("Contraseña incorrecta")
     else:
         st.success("✅ Modo admin activo")
-        if st.button("Cerrar sesión"):
+        if st.button("Cerrar sesión", use_container_width=True):
             st.session_state.is_admin = False
             st.rerun()
-
     st.markdown("---")
-    st.markdown("""
-    **Vista gerencial**  
-    Comparte el link de esta app.  
-    Solo el admin puede cargar archivos.
-    """)
+    st.markdown("**Vista gerencial**  \nComparte el link de esta app.  \nSolo el admin puede cargar archivos.")
+
+# ── LOGIN VISIBLE EN PANTALLA PRINCIPAL (si sidebar no aparece) ───────────────
+if not st.session_state.is_admin:
+    with st.expander("🔐 Acceso Administrador — clic aquí para subir archivos", expanded=False):
+        col_a, col_b, col_c = st.columns([1, 1, 1])
+        with col_b:
+            pwd2 = st.text_input("Contraseña admin", type="password", key="pwd_main")
+            if st.button("Entrar como admin", use_container_width=True, type="primary", key="btn_main"):
+                if hashlib.sha256(pwd2.encode()).hexdigest() == ADMIN_PASSWORD:
+                    st.session_state.is_admin = True
+                    st.rerun()
+                else:
+                    st.error("Contraseña incorrecta")
 
 # ── ADMIN: CARGA DE ARCHIVOS ──────────────────────────────────────────────────
 if st.session_state.is_admin:
