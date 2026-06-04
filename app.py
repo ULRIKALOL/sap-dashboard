@@ -961,52 +961,48 @@ with g4:
         st.info(empty_msg)
     st.markdown('</div>', unsafe_allow_html=True)
 
-# ── Columna derecha: ID SAP por número de movimientos (no suma de montos) ─────
+# ── Columna derecha: Username por frecuencia de descargas ─────────────────────
 with g5:
     st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-card-title">IDs SAP con más descargas</div><div class="chart-card-sub">Por número de movimientos tipo 201 registrados · haz clic para filtrar</div>', unsafe_allow_html=True)
+    st.markdown('<div class="chart-card-title">Usuarios SAP — frecuencia de descargas</div><div class="chart-card-sub">Veces que cada usuario registró un movimiento 201 · haz clic para filtrar</div>', unsafe_allow_html=True)
 
-    # Agrupa por ID (texto), cuenta movimientos y suma monto como info adicional
     ud = (df[df["Usuario_SAP"].str.strip().ne("—") & df["Usuario_SAP"].str.strip().ne("")]
           .groupby("Usuario_SAP")
           .agg(
-              Movimientos=("Reference","count"),   # cuántas veces surtió
-              Monto_Total=("Monto_SAP","sum"),      # monto acumulado (info hover)
-              Refs_Unicas=("Reference","nunique"),  # referencias distintas
+              Veces=("Reference", "count"),
+              Monto_Total=("Monto_SAP", "sum"),
           )
           .reset_index()
-          .sort_values("Movimientos", ascending=True)
-          .tail(10))
+          .sort_values("Veces", ascending=True)
+          .tail(12))
 
     if len(ud):
         sel_usr = st.session_state.click_filter if st.session_state.click_type == "usuario" else None
-        # Color por volumen: gradiente de menos a más movimientos
         n_u = len(ud)
-        u_base = [f"hsl(262,{55+int(25*i/max(n_u-1,1))}%,{55-int(20*i/max(n_u-1,1))}%)" for i in range(n_u)]
+        # Gradiente de azul claro a azul oscuro según frecuencia
+        u_base = [f"hsl(220,{60+int(20*i/max(n_u-1,1))}%,{62-int(22*i/max(n_u-1,1))}%)" for i in range(n_u)]
         u_colors = highlight_bar(ud["Usuario_SAP"].tolist(), sel_usr, u_base)
 
         fig_usr = go.Figure(go.Bar(
             y=ud["Usuario_SAP"],
-            x=ud["Movimientos"],
+            x=ud["Veces"],
             orientation="h",
             marker=dict(color=u_colors, line=dict(width=0)),
-            text=ud["Movimientos"],
+            text=ud["Veces"],
             textposition="outside",
-            textfont=dict(size=11, family="DM Sans"),
-            customdata=list(zip(ud["Monto_Total"], ud["Refs_Unicas"], ud["Usuario_SAP"])),
+            textfont=dict(size=11, family="Inter"),
+            customdata=list(zip(ud["Monto_Total"], ud["Usuario_SAP"])),
             hovertemplate=(
-                "<b>ID SAP: %{y}</b><br>"
-                "Movimientos: <b>%{x:,}</b><br>"
-                "Monto total: $%{customdata[0]:,.0f}<br>"
-                "Referencias únicas: %{customdata[1]}<extra></extra>"
+                "<b>%{y}</b><br>"
+                "Descargas: <b>%{x:,} veces</b><br>"
+                "Monto acumulado: $%{customdata[0]:,.0f}<extra></extra>"
             ),
         ))
-        # Eje X con conteo, no dinero
-        layout_usr = bar_layout(max(280, len(ud)*42))
+        layout_usr = bar_layout(max(280, len(ud) * 38))
         layout_usr["xaxis"] = dict(
             showgrid=True, gridcolor="#f1f5f9", zeroline=False,
             tickformat=",d",
-            title=dict(text="Número de movimientos", font=dict(size=11, color="#94a3b8")),
+            title=dict(text="Número de descargas", font=dict(size=11, color="#94a3b8")),
         )
         fig_usr.update_layout(**layout_usr)
 
