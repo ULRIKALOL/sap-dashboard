@@ -614,6 +614,31 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Solo el admin puede actualizar.\nGerencia accede con el link.")
 
+    # ── VISTA RÁPIDA en sidebar (siempre visible) ──────────────────────────────
+    if st.session_state.data is not None:
+        st.markdown("---")
+        st.markdown("### ⚡ Vista rápida")
+        df_all_sb = st.session_state.data
+        qf_options = {
+            "Todos":           len(df_all_sb),
+            "Aprobados":       int(df_all_sb["Aprobado"].sum()),
+            "Sin MRO":         int((~df_all_sb["En_MRO"]).sum()),
+            "No aprobado":     int((df_all_sb["En_MRO"] & df_all_sb["Discrepancia"]).sum()),
+            "T1 (6am–2pm)":   int((df_all_sb["Turno"]=="T1 (6am–2pm)").sum()),
+            "T2 (2pm–9:30pm)":int((df_all_sb["Turno"]=="T2 (2pm–9:30pm)").sum()),
+            "T3 (9:30pm–6am)":int((df_all_sb["Turno"]=="T3 (9:30pm–6am)").sum()),
+        }
+        for label, count in qf_options.items():
+            is_active = st.session_state.quick_filter == label
+            btn_label = f"{'▶ ' if is_active else ''}{label}  ({fmt_num(count)})"
+            if st.button(btn_label, key=f"sb_qf_{label}",
+                         use_container_width=True,
+                         type="primary" if is_active else "secondary"):
+                st.session_state.quick_filter = label
+                st.session_state.click_filter = None
+                st.session_state.click_type   = None
+                st.rerun()
+
 # ── LOGIN FALLBACK ─────────────────────────────────────────────────────────────
 if not st.session_state.is_admin:
     with st.expander("🔐 Acceso Administrador", expanded=False):
@@ -724,36 +749,7 @@ if total_disc > 0:
       </div>
     </div>""", unsafe_allow_html=True)
 
-# ── FILTROS RÁPIDOS — PANEL FLOTANTE ──────────────────────────────────────────
-# Manejo de query param para el filtro rápido (desde el panel flotante)
-try:
-    qf_param = st.query_params.get("qf", None)
-    if qf_param and qf_param != st.session_state.quick_filter:
-        st.session_state.quick_filter = qf_param
-        st.session_state.click_filter = None
-        st.session_state.click_type   = None
-        st.rerun()
-except Exception:
-    pass
-
-QUICK = [
-    ("Todos",         "Todos",         len(df)),
-    ("Aprobados",     "Aprobados",     int(df["Aprobado"].sum())),
-    ("Sin MRO",       "Sin MRO",       sin_mro),
-    ("No aprobado",   "No aprobado",   disc_mro),
-    ("T1 6am–2pm",    "T1 (6am–2pm)",  int((df["Turno"]=="T1 (6am–2pm)").sum())),
-    ("T2 2–9:30pm",   "T2 (2pm–9:30pm)", int((df["Turno"]=="T2 (2pm–9:30pm)").sum())),
-    ("T3 9:30–6am",   "T3 (9:30pm–6am)", int((df["Turno"]=="T3 (9:30pm–6am)").sum())),
-]
-
-pills_html = '<div class="float-panel"><div class="float-panel-title">Vista rápida</div>'
-for short_lbl, full_lbl, count in QUICK:
-    active_cls = "active" if st.session_state.quick_filter in (short_lbl, full_lbl) else ""
-    pills_html += f'<a class="fpill {active_cls}" href="?qf={full_lbl}">{short_lbl}<span class="fc">{fmt_num(count)}</span></a>'
-pills_html += '</div>'
-st.markdown(pills_html, unsafe_allow_html=True)
-
-# Aplica filtro rápido
+# ── APLICA FILTRO RÁPIDO ───────────────────────────────────────────────────────
 qf = st.session_state.quick_filter
 if qf == "Aprobados":         df = df[df["Aprobado"]]
 elif qf == "Sin MRO":         df = df[~df["En_MRO"]]
