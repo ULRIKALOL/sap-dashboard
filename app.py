@@ -725,35 +725,23 @@ if total_disc > 0:
     </div>""", unsafe_allow_html=True)
 
 # ── FILTROS RÁPIDOS ────────────────────────────────────────────────────────────
-qf_options = [
-    ("Todos",            len(df)),
-    ("✅ Aprobados",      int(df["Aprobado"].sum())),
-    ("⚠️ Sin MRO",        sin_mro),
-    ("✗ No aprobado",    disc_mro),
-    ("T1  6am–2pm",      int((df["Turno"]=="T1 (6am–2pm)").sum())),
-    ("T2  2pm–9:30pm",   int((df["Turno"]=="T2 (2pm–9:30pm)").sum())),
-    ("T3  9:30pm–6am",   int((df["Turno"]=="T3 (9:30pm–6am)").sum())),
+_df_base = st.session_state.data  # siempre sobre el dataset completo para los conteos
+QF_BTNS = [
+    ("Todos",          "Todos",            len(_df_base)),
+    ("Aprobados",      "Aprobados",        int(_df_base["Aprobado"].sum())),
+    ("Sin MRO",        "Sin MRO",          int((~_df_base["En_MRO"]).sum())),
+    ("No aprobado",    "No aprobado",      int((_df_base["En_MRO"] & _df_base["Discrepancia"]).sum())),
+    ("T1 6am-2pm",     "T1 (6am–2pm)",     int((_df_base["Turno"]=="T1 (6am–2pm)").sum())),
+    ("T2 2pm-9:30pm",  "T2 (2pm–9:30pm)", int((_df_base["Turno"]=="T2 (2pm–9:30pm)").sum())),
+    ("T3 9:30pm-6am",  "T3 (9:30pm–6am)", int((_df_base["Turno"]=="T3 (9:30pm–6am)").sum())),
 ]
-# Mapa de etiqueta visible → valor interno del filtro
-QF_MAP = {
-    "Todos":           "Todos",
-    "✅ Aprobados":     "Aprobados",
-    "⚠️ Sin MRO":       "Sin MRO",
-    "✗ No aprobado":   "No aprobado",
-    "T1  6am–2pm":     "T1 (6am–2pm)",
-    "T2  2pm–9:30pm":  "T2 (2pm–9:30pm)",
-    "T3  9:30pm–6am":  "T3 (9:30pm–6am)",
-}
-QF_REVERSE = {v: k for k, v in QF_MAP.items()}
-
-cols_qf = st.columns(len(qf_options))
-for i, (label, count) in enumerate(qf_options):
-    internal = QF_MAP[label]
+cols_qf = st.columns(len(QF_BTNS))
+for i, (short_lbl, internal, count) in enumerate(QF_BTNS):
     is_active = st.session_state.quick_filter == internal
     with cols_qf[i]:
         if st.button(
-            f"{label}\n{fmt_num(count)}",
-            key=f"qf_{i}_{internal}",
+            f"{short_lbl} ({fmt_num(count)})",
+            key=f"qf{i}",
             use_container_width=True,
             type="primary" if is_active else "secondary",
         ):
