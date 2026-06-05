@@ -254,7 +254,42 @@ html,body,[class*="css"]{font-family:'Inter',sans-serif;-webkit-font-smoothing:a
   box-shadow:0 1px 4px rgba(34,197,94,.1);
 }
 
-/* ── ACTIVE FILTER CHIP ── */
+/* ── FLOATING QUICK FILTER ── */
+.float-panel{
+  position:fixed;
+  right:18px;
+  top:50%;
+  transform:translateY(-50%);
+  z-index:999;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  background:rgba(255,255,255,.92);
+  border:1px solid #e2e8f0;
+  border-radius:16px;
+  padding:10px 8px;
+  box-shadow:0 4px 24px rgba(15,41,66,.14),0 1px 4px rgba(15,41,66,.08);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  min-width:110px;
+}
+.float-panel-title{
+  font-size:8px;font-weight:700;color:#94a3b8;
+  text-transform:uppercase;letter-spacing:.12em;
+  text-align:center;padding-bottom:5px;
+  border-bottom:1px solid #f1f5f9;margin-bottom:2px;
+}
+.fpill{
+  display:block;padding:6px 10px;border-radius:10px;
+  font-size:11px;font-weight:600;text-align:center;cursor:pointer;
+  border:1.5px solid #e2e8f0;background:#fff;color:#475569;
+  transition:all .15s ease;text-decoration:none;
+  box-shadow:0 1px 3px rgba(15,23,42,.08);
+}
+.fpill:hover{background:#f0f4f8;border-color:#cbd5e1;color:#1e293b;}
+.fpill.active{background:#0f2942;border-color:#0f2942;color:#fff;
+  box-shadow:0 2px 8px rgba(15,41,66,.3);}
+.fpill .fc{font-size:9px;font-weight:500;color:inherit;opacity:.75;display:block;margin-top:1px;}
 .active-chip{
   display:inline-flex;align-items:center;gap:6px;
   background:linear-gradient(135deg,#eff6ff,#dbeafe);
@@ -689,36 +724,43 @@ if total_disc > 0:
       </div>
     </div>""", unsafe_allow_html=True)
 
-# ── FILTROS RÁPIDOS ────────────────────────────────────────────────────────────
-st.markdown('<div class="shd"><div class="shd-dot blue"></div>Vista rápida</div>', unsafe_allow_html=True)
+# ── FILTROS RÁPIDOS — PANEL FLOTANTE ──────────────────────────────────────────
+# Manejo de query param para el filtro rápido (desde el panel flotante)
+try:
+    qf_param = st.query_params.get("qf", None)
+    if qf_param and qf_param != st.session_state.quick_filter:
+        st.session_state.quick_filter = qf_param
+        st.session_state.click_filter = None
+        st.session_state.click_type   = None
+        st.rerun()
+except Exception:
+    pass
+
 QUICK = [
-    ("Todos",           len(df)),
-    ("Aprobados",       int(df["Aprobado"].sum())),
-    ("Sin MRO",         sin_mro),
-    ("No aprobado",     disc_mro),
-    ("T1 (6am–2pm)",    int((df["Turno"]=="T1 (6am–2pm)").sum())),
-    ("T2 (2pm–9:30pm)", int((df["Turno"]=="T2 (2pm–9:30pm)").sum())),
-    ("T3 (9:30pm–6am)", int((df["Turno"]=="T3 (9:30pm–6am)").sum())),
+    ("Todos",         "Todos",         len(df)),
+    ("Aprobados",     "Aprobados",     int(df["Aprobado"].sum())),
+    ("Sin MRO",       "Sin MRO",       sin_mro),
+    ("No aprobado",   "No aprobado",   disc_mro),
+    ("T1 6am–2pm",    "T1 (6am–2pm)",  int((df["Turno"]=="T1 (6am–2pm)").sum())),
+    ("T2 2–9:30pm",   "T2 (2pm–9:30pm)", int((df["Turno"]=="T2 (2pm–9:30pm)").sum())),
+    ("T3 9:30–6am",   "T3 (9:30pm–6am)", int((df["Turno"]=="T3 (9:30pm–6am)").sum())),
 ]
-cols_b = st.columns(len(QUICK))
-for i, (label, count) in enumerate(QUICK):
-    with cols_b[i]:
-        active = st.session_state.quick_filter == label
-        if st.button(f"{label}\n{fmt_num(count)}", key=f"qf_{label}",
-                     use_container_width=True,
-                     type="primary" if active else "secondary"):
-            st.session_state.quick_filter = label
-            st.session_state.click_filter = None
-            st.session_state.click_type   = None
-            st.rerun()
+
+pills_html = '<div class="float-panel"><div class="float-panel-title">Vista rápida</div>'
+for short_lbl, full_lbl, count in QUICK:
+    active_cls = "active" if st.session_state.quick_filter in (short_lbl, full_lbl) else ""
+    pills_html += f'<a class="fpill {active_cls}" href="?qf={full_lbl}">{short_lbl}<span class="fc">{fmt_num(count)}</span></a>'
+pills_html += '</div>'
+st.markdown(pills_html, unsafe_allow_html=True)
 
 # Aplica filtro rápido
 qf = st.session_state.quick_filter
-if qf == "Aprobados":       df = df[df["Aprobado"]]
-elif qf == "Sin MRO":       df = df[~df["En_MRO"]]
-elif qf == "No aprobado":   df = df[df["En_MRO"] & df["Discrepancia"]]
-elif qf in ["T1 (6am–2pm)","T2 (2pm–9:30pm)","T3 (9:30pm–6am)"]:
-    df = df[df["Turno"] == qf]
+if qf == "Aprobados":         df = df[df["Aprobado"]]
+elif qf == "Sin MRO":         df = df[~df["En_MRO"]]
+elif qf == "No aprobado":     df = df[df["En_MRO"] & df["Discrepancia"]]
+elif qf == "T1 (6am–2pm)":   df = df[df["Turno"] == "T1 (6am–2pm)"]
+elif qf == "T2 (2pm–9:30pm)":df = df[df["Turno"] == "T2 (2pm–9:30pm)"]
+elif qf == "T3 (9:30pm–6am)":df = df[df["Turno"] == "T3 (9:30pm–6am)"]
 
 # ── CROSS-FILTER (click en gráficas) ─────────────────────────────────────────
 cf_val  = st.session_state.click_filter
@@ -812,75 +854,75 @@ st.markdown('<div class="shd"><div class="shd-dot purple"></div>Distribución de
 g1, g2, g3 = st.columns([1.3, 1, 1])
 
 with g1:
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-card-title">Estado MRO</div><div class="chart-card-sub">Distribución por status · haz clic para filtrar</div>', unsafe_allow_html=True)
     sc2 = df["Status_MRO"].value_counts().reset_index()
     sc2.columns = ["Status", "Cantidad"]
-    colors_pie  = [status_color(s) for s in sc2["Status"]]
-    fig_dona = go.Figure(go.Pie(
-        labels=sc2["Status"], values=sc2["Cantidad"], hole=.60,
-        marker=dict(colors=colors_pie, line=dict(color="#fff", width=2.5)),
-        textinfo="label+percent", textfont=dict(size=11, family="DM Sans"),
-        customdata=sc2["Status"],
-        hovertemplate="<b>%{label}</b><br>Cantidad: %{value:,}<br>%{percent}<extra></extra>",
-    ))
-    fig_dona.add_annotation(
-        text=f"<b>{fmt_num(total)}</b><br><span style='font-size:11px'>mov.</span>",
-        x=0.5, y=0.5, showarrow=False, font=dict(size=16, family="DM Sans"))
-    fig_dona.update_layout(showlegend=True,
-        legend=dict(orientation="v", x=1.02, y=0.5, font=dict(size=10)),
-        margin=dict(t=10, b=10, l=10, r=120), height=280,
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-    sel_dona = st.plotly_chart(fig_dona, use_container_width=True,
-        config={"displayModeBar": False}, on_select="rerun", key="dona_status")
-    if sel_dona and sel_dona.get("selection") and sel_dona["selection"].get("points"):
-        pt = sel_dona["selection"]["points"][0]
-        lbl = pt.get("label")
-        if lbl and lbl != st.session_state.click_filter:
-            st.session_state.click_filter = lbl
-            st.session_state.click_type   = "status"
-            st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    if len(sc2):
+        colors_pie = [status_color(s) for s in sc2["Status"]]
+        fig_dona = go.Figure(go.Pie(
+            labels=sc2["Status"], values=sc2["Cantidad"], hole=.60,
+            marker=dict(colors=colors_pie, line=dict(color="#fff", width=2.5)),
+            textinfo="label+percent", textfont=dict(size=11, family="DM Sans"),
+            customdata=sc2["Status"],
+            hovertemplate="<b>%{label}</b><br>Cantidad: %{value:,}<br>%{percent}<extra></extra>",
+        ))
+        fig_dona.add_annotation(
+            text=f"<b>{fmt_num(total)}</b><br><span style='font-size:11px'>mov.</span>",
+            x=0.5, y=0.5, showarrow=False, font=dict(size=16, family="DM Sans"))
+        fig_dona.update_layout(showlegend=True,
+            legend=dict(orientation="v", x=1.02, y=0.5, font=dict(size=10)),
+            margin=dict(t=10, b=10, l=10, r=120), height=280,
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        st.markdown('<div class="chart-card"><div class="chart-card-title">Estado MRO</div><div class="chart-card-sub">Distribución por status · haz clic para filtrar</div>', unsafe_allow_html=True)
+        sel_dona = st.plotly_chart(fig_dona, use_container_width=True,
+            config={"displayModeBar": False}, on_select="rerun", key="dona_status")
+        if sel_dona and sel_dona.get("selection") and sel_dona["selection"].get("points"):
+            pt = sel_dona["selection"]["points"][0]
+            lbl = pt.get("label")
+            if lbl and lbl != st.session_state.click_filter:
+                st.session_state.click_filter = lbl
+                st.session_state.click_type   = "status"
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 with g2:
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-card-title">Movimientos por turno</div><div class="chart-card-sub">Cantidad de descargas</div>', unsafe_allow_html=True)
     td = df.groupby("Turno").agg(Movs=("Reference","count"), Monto=("Monto_SAP","sum")).reset_index()
-    t_colors = [TURNO_C.get(t, "#6366f1") for t in td["Turno"]]
-    sel_t = st.session_state.click_filter if st.session_state.click_type == "turno" else None
-    t_bar_colors = highlight_bar(td["Turno"].tolist(), sel_t, t_colors)
-    fig_t = go.Figure(go.Bar(
-        x=td["Turno"], y=td["Movs"],
-        marker=dict(color=t_bar_colors, line=dict(width=0)),
-        text=td["Movs"], textposition="outside", textfont=dict(size=11),
-        customdata=td["Turno"],
-        hovertemplate="<b>%{x}</b><br>Movimientos: %{y:,}<extra></extra>",
-    ))
-    fig_t.update_layout(**bar_layout_v(260))
-    sel_turno = st.plotly_chart(fig_t, use_container_width=True,
-        config={"displayModeBar": False}, on_select="rerun", key="bar_turno")
-    if sel_turno and sel_turno.get("selection") and sel_turno["selection"].get("points"):
-        pt = sel_turno["selection"]["points"][0]
-        lbl = pt.get("x") or pt.get("label")
-        if lbl and lbl != st.session_state.click_filter:
-            st.session_state.click_filter = lbl
-            st.session_state.click_type   = "turno"
-            st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    if len(td):
+        t_colors = [TURNO_C.get(t, "#6366f1") for t in td["Turno"]]
+        sel_t = st.session_state.click_filter if st.session_state.click_type == "turno" else None
+        t_bar_colors = highlight_bar(td["Turno"].tolist(), sel_t, t_colors)
+        fig_t = go.Figure(go.Bar(
+            x=td["Turno"], y=td["Movs"],
+            marker=dict(color=t_bar_colors, line=dict(width=0)),
+            text=td["Movs"], textposition="outside", textfont=dict(size=11),
+            customdata=td["Turno"],
+            hovertemplate="<b>%{x}</b><br>Movimientos: %{y:,}<extra></extra>",
+        ))
+        fig_t.update_layout(**bar_layout_v(260))
+        st.markdown('<div class="chart-card"><div class="chart-card-title">Movimientos por turno</div><div class="chart-card-sub">Cantidad de descargas</div>', unsafe_allow_html=True)
+        sel_turno = st.plotly_chart(fig_t, use_container_width=True,
+            config={"displayModeBar": False}, on_select="rerun", key="bar_turno")
+        if sel_turno and sel_turno.get("selection") and sel_turno["selection"].get("points"):
+            pt = sel_turno["selection"]["points"][0]
+            lbl = pt.get("x") or pt.get("label")
+            if lbl and lbl != st.session_state.click_filter:
+                st.session_state.click_filter = lbl
+                st.session_state.click_type   = "turno"
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 with g3:
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.markdown('<div class="chart-card-title">Monto por turno</div><div class="chart-card-sub">Suma en moneda local</div>', unsafe_allow_html=True)
-    fig_mt = go.Figure(go.Bar(
-        x=td["Turno"], y=td["Monto"],
-        marker=dict(color=t_bar_colors, line=dict(width=0)),
-        text=[fmt_mxn(v) for v in td["Monto"]], textposition="outside", textfont=dict(size=10),
-        hovertemplate="<b>%{x}</b><br>Monto: $%{y:,.0f}<extra></extra>",
-    ))
-    fig_mt.update_layout(**bar_layout_v(260))
-    fig_mt.update_layout(yaxis=dict(tickformat="$,.0f", showgrid=True, gridcolor="#f1f5f9"))
-    st.plotly_chart(fig_mt, use_container_width=True, config={"displayModeBar": False}, key="bar_monto_t")
-    st.markdown('</div>', unsafe_allow_html=True)
+    if len(td):
+        fig_mt = go.Figure(go.Bar(
+            x=td["Turno"], y=td["Monto"],
+            marker=dict(color=t_bar_colors, line=dict(width=0)),
+            text=[fmt_mxn(v) for v in td["Monto"]], textposition="outside", textfont=dict(size=10),
+            hovertemplate="<b>%{x}</b><br>Monto: $%{y:,.0f}<extra></extra>",
+        ))
+        fig_mt.update_layout(**bar_layout_v(260))
+        fig_mt.update_layout(yaxis=dict(tickformat="$,.0f", showgrid=True, gridcolor="#f1f5f9"))
+        st.markdown('<div class="chart-card"><div class="chart-card-title">Monto por turno</div><div class="chart-card-sub">Suma en moneda local</div>', unsafe_allow_html=True)
+        st.plotly_chart(fig_mt, use_container_width=True, config={"displayModeBar": False}, key="bar_monto_t")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ── GRÁFICAS ROW 2: APROBADORES/REQUESTER + USUARIOS SAP ──────────────────────
 st.markdown('<div class="shd"><div class="shd-dot green"></div>Aprobadores y usuarios SAP</div>', unsafe_allow_html=True)
@@ -1021,15 +1063,12 @@ with g5:
         st.markdown('</div>', unsafe_allow_html=True)
 
 # ── TOP MATERIALES ─────────────────────────────────────────────────────────────
-st.markdown('<div class="shd"><div class="shd-dot orange"></div>Top materiales descargados</div>', unsafe_allow_html=True)
-st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-st.markdown('<div class="chart-card-title">Materiales por monto total</div><div class="chart-card-sub">Código SAP y descripción · haz clic para filtrar</div>', unsafe_allow_html=True)
-
 md2 = df.groupby(["Material", "Descripcion"]).agg(
     Cantidad=("Cantidad","sum"), Monto=("Monto_SAP","sum"), Movs=("Reference","count")
 ).reset_index().sort_values("Monto", ascending=True).tail(12)
 
 if len(md2):
+    st.markdown('<div class="shd"><div class="shd-dot orange"></div>Top materiales descargados</div>', unsafe_allow_html=True)
     etiq = (md2["Material"] + "  |  " + md2["Descripcion"].str[:30]).tolist()
     sel_mat = st.session_state.click_filter if st.session_state.click_type == "material" else None
     mat_raw = md2["Material"].tolist()
@@ -1045,6 +1084,7 @@ if len(md2):
     ))
     fig_mat.update_layout(**bar_layout(max(340, len(md2)*38)))
     fig_mat.update_layout(yaxis=dict(tickfont=dict(size=10), showgrid=False))
+    st.markdown('<div class="chart-card"><div class="chart-card-title">Materiales por monto total</div><div class="chart-card-sub">Código SAP y descripción · haz clic para filtrar</div>', unsafe_allow_html=True)
     sel_m = st.plotly_chart(fig_mat, use_container_width=True,
         config={"displayModeBar": False}, on_select="rerun", key="bar_material")
     if sel_m and sel_m.get("selection") and sel_m["selection"].get("points"):
@@ -1054,7 +1094,7 @@ if len(md2):
             st.session_state.click_filter = lbl
             st.session_state.click_type   = "material"
             st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ── TABLA DETALLE ──────────────────────────────────────────────────────────────
 st.markdown('<div class="shd"><div class="shd-dot gray"></div>Detalle de movimientos</div>', unsafe_allow_html=True)
