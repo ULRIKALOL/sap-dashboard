@@ -614,31 +614,6 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Solo el admin puede actualizar.\nGerencia accede con el link.")
 
-    # ── VISTA RÁPIDA en sidebar (siempre visible) ──────────────────────────────
-    if st.session_state.data is not None:
-        st.markdown("---")
-        st.markdown("### ⚡ Vista rápida")
-        df_all_sb = st.session_state.data
-        qf_options = {
-            "Todos":           len(df_all_sb),
-            "Aprobados":       int(df_all_sb["Aprobado"].sum()),
-            "Sin MRO":         int((~df_all_sb["En_MRO"]).sum()),
-            "No aprobado":     int((df_all_sb["En_MRO"] & df_all_sb["Discrepancia"]).sum()),
-            "T1 (6am–2pm)":   int((df_all_sb["Turno"]=="T1 (6am–2pm)").sum()),
-            "T2 (2pm–9:30pm)":int((df_all_sb["Turno"]=="T2 (2pm–9:30pm)").sum()),
-            "T3 (9:30pm–6am)":int((df_all_sb["Turno"]=="T3 (9:30pm–6am)").sum()),
-        }
-        for label, count in qf_options.items():
-            is_active = st.session_state.quick_filter == label
-            btn_label = f"{'▶ ' if is_active else ''}{label}  ({fmt_num(count)})"
-            if st.button(btn_label, key=f"sb_qf_{label}",
-                         use_container_width=True,
-                         type="primary" if is_active else "secondary"):
-                st.session_state.quick_filter = label
-                st.session_state.click_filter = None
-                st.session_state.click_type   = None
-                st.rerun()
-
 # ── LOGIN FALLBACK ─────────────────────────────────────────────────────────────
 if not st.session_state.is_admin:
     with st.expander("🔐 Acceso Administrador", expanded=False):
@@ -748,6 +723,44 @@ if total_disc > 0:
           <div class="al">Total mov. en rango</div><div class="as">{fmt_mxn(df['Monto_SAP'].sum())} total</div></div>
       </div>
     </div>""", unsafe_allow_html=True)
+
+# ── FILTROS RÁPIDOS ────────────────────────────────────────────────────────────
+qf_options = [
+    ("Todos",            len(df)),
+    ("✅ Aprobados",      int(df["Aprobado"].sum())),
+    ("⚠️ Sin MRO",        sin_mro),
+    ("✗ No aprobado",    disc_mro),
+    ("T1  6am–2pm",      int((df["Turno"]=="T1 (6am–2pm)").sum())),
+    ("T2  2pm–9:30pm",   int((df["Turno"]=="T2 (2pm–9:30pm)").sum())),
+    ("T3  9:30pm–6am",   int((df["Turno"]=="T3 (9:30pm–6am)").sum())),
+]
+# Mapa de etiqueta visible → valor interno del filtro
+QF_MAP = {
+    "Todos":           "Todos",
+    "✅ Aprobados":     "Aprobados",
+    "⚠️ Sin MRO":       "Sin MRO",
+    "✗ No aprobado":   "No aprobado",
+    "T1  6am–2pm":     "T1 (6am–2pm)",
+    "T2  2pm–9:30pm":  "T2 (2pm–9:30pm)",
+    "T3  9:30pm–6am":  "T3 (9:30pm–6am)",
+}
+QF_REVERSE = {v: k for k, v in QF_MAP.items()}
+
+cols_qf = st.columns(len(qf_options))
+for i, (label, count) in enumerate(qf_options):
+    internal = QF_MAP[label]
+    is_active = st.session_state.quick_filter == internal
+    with cols_qf[i]:
+        if st.button(
+            f"{label}\n{fmt_num(count)}",
+            key=f"qf_{i}_{internal}",
+            use_container_width=True,
+            type="primary" if is_active else "secondary",
+        ):
+            st.session_state.quick_filter = internal
+            st.session_state.click_filter = None
+            st.session_state.click_type   = None
+            st.rerun()
 
 # ── APLICA FILTRO RÁPIDO ───────────────────────────────────────────────────────
 qf = st.session_state.quick_filter
